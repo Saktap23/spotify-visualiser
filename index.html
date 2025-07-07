@@ -68,19 +68,25 @@
     const scopes = ["user-read-currently-playing", "user-read-playback-state"];
     const authEndpoint = "https://accounts.spotify.com/authorize";
 
-    function getTokenFromHash() {
+    function getToken() {
       const hash = window.location.hash.substring(1);
       const params = new URLSearchParams(hash);
-      return params.get("access_token");
+      let t = params.get("access_token");
+      if (t) {
+        localStorage.setItem("spotify_token", t);
+        window.history.replaceState(null, null, window.location.pathname); // Clean URL
+      } else {
+        t = localStorage.getItem("spotify_token");
+      }
+      return t;
     }
 
-    const token = getTokenFromHash();
+    const token = getToken();
 
     if (!token) {
       const authUrl = `${authEndpoint}?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=${scopes.join("%20")}`;
       window.location.href = authUrl;
     } else {
-      window.history.replaceState(null, null, window.location.pathname); // Clean URL
       window.addEventListener("load", () => {
         start();
         fetchAlbumArt();
