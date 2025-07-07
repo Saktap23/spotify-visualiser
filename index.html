@@ -68,9 +68,24 @@
     const scopes = ["user-read-currently-playing", "user-read-playback-state"];
     const authEndpoint = "https://accounts.spotify.com/authorize";
 
-    let token = new URLSearchParams(window.location.hash.substring(1)).get("access_token");
+    function getTokenFromHash() {
+      const hash = window.location.hash.substring(1);
+      const params = new URLSearchParams(hash);
+      return params.get("access_token");
+    }
+
+    const token = getTokenFromHash();
+
     if (!token) {
-      window.location.href = `${authEndpoint}?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=${scopes.join("%20")}`;
+      const authUrl = `${authEndpoint}?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=${scopes.join("%20")}`;
+      window.location.href = authUrl;
+    } else {
+      window.history.replaceState(null, null, window.location.pathname); // Clean URL
+      window.addEventListener("load", () => {
+        start();
+        fetchAlbumArt();
+        setInterval(fetchAlbumArt, 5000);
+      });
     }
 
     async function fetchAlbumArt() {
@@ -264,14 +279,11 @@
         const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
         setupAnalyser(stream);
         draw();
-        setInterval(fetchAlbumArt, 5000);
       } catch (err) {
         alert("Audio capture failed or was denied.");
         console.error(err);
       }
     }
-
-    start();
   </script>
 </body>
 </html>
