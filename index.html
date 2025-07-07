@@ -65,6 +65,7 @@
 
     const clientId = "102d1b68cdd649459e37be7e48748d9c";
     const redirectUri = window.location.origin + window.location.pathname;
+    const encodedRedirectUri = encodeURIComponent(redirectUri);
     const scopes = ["user-read-currently-playing", "user-read-playback-state"];
     const authEndpoint = "https://accounts.spotify.com/authorize";
 
@@ -84,7 +85,7 @@
     const token = getToken();
 
     if (!token) {
-      const authUrl = `${authEndpoint}?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=${scopes.join("%20")}`;
+      const authUrl = `${authEndpoint}?client_id=${clientId}&redirect_uri=${encodedRedirectUri}&response_type=token&scope=${scopes.join("%20")}`;
       window.location.href = authUrl;
     } else {
       window.addEventListener("load", () => {
