@@ -72,6 +72,12 @@
     function getToken() {
       const hash = window.location.hash.substring(1);
       const params = new URLSearchParams(hash);
+      const error = params.get("error");
+      if (error) {
+        sessionStorage.setItem("spotify_auth_error", error);
+        window.history.replaceState(null, null, window.location.pathname);
+        return null;
+      }
       let t = params.get("access_token");
       if (t) {
         localStorage.setItem("spotify_token", t);
@@ -83,16 +89,23 @@
     }
 
     const token = getToken();
+    const authError = sessionStorage.getItem("spotify_auth_error");
 
-    if (!token) {
+    if (!token && !authError) {
       const authUrl = `${authEndpoint}?client_id=${clientId}&redirect_uri=${encodedRedirectUri}&response_type=token&scope=${scopes.join("%20")}`;
       window.location.href = authUrl;
     } else {
-      window.addEventListener("load", () => {
-        start();
-        fetchAlbumArt();
-        setInterval(fetchAlbumArt, 5000);
-      });
+      if (authError) {
+        alert("Spotify authorization failed: " + authError);
+        sessionStorage.removeItem("spotify_auth_error");
+      }
+      if (token) {
+        window.addEventListener("load", () => {
+          start();
+          fetchAlbumArt();
+          setInterval(fetchAlbumArt, 5000);
+        });
+      }
     }
 
     async function fetchAlbumArt() {
