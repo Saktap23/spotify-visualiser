@@ -65,27 +65,47 @@
 
     const clientId = "102d1b68cdd649459e37be7e48748d9c";
     const redirectUri = window.location.origin + window.location.pathname;
+    const encodedRedirectUri = encodeURIComponent(redirectUri);
     const scopes = ["user-read-currently-playing", "user-read-playback-state"];
     const authEndpoint = "https://accounts.spotify.com/authorize";
 
-    function getTokenFromHash() {
+    function getToken() {
       const hash = window.location.hash.substring(1);
       const params = new URLSearchParams(hash);
-      return params.get("access_token");
+      const error = params.get("error");
+      if (error) {
+        sessionStorage.setItem("spotify_auth_error", error);
+        window.history.replaceState(null, null, window.location.pathname);
+        return null;
+      }
+      let t = params.get("access_token");
+      if (t) {
+        localStorage.setItem("spotify_token", t);
+        window.history.replaceState(null, null, window.location.pathname); // Clean URL
+      } else {
+        t = localStorage.getItem("spotify_token");
+      }
+      return t;
     }
 
-    const token = getTokenFromHash();
+    const token = getToken();
+    const authError = sessionStorage.getItem("spotify_auth_error");
 
-    if (!token) {
-      const authUrl = `${authEndpoint}?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=${scopes.join("%20")}`;
+    if (!token && !authError) {
+      const authUrl = `${authEndpoint}?client_id=${clientId}&redirect_uri=${encodedRedirectUri}&response_type=token&scope=${scopes.join("%20")}`;
       window.location.href = authUrl;
     } else {
-      window.history.replaceState(null, null, window.location.pathname); // Clean URL
-      window.addEventListener("load", () => {
-        start();
-        fetchAlbumArt();
-        setInterval(fetchAlbumArt, 5000);
-      });
+      if (authError) {
+        alert("Spotify authorization failed: " + authError);
+        sessionStorage.removeItem("spotify_auth_error");
+      }
+      if (token) {
+        window.addEventListener("load", () => {
+          start();
+          fetchAlbumArt();
+          setInterval(fetchAlbumArt, 5000);
+        });
+      }
     }
 
     async function fetchAlbumArt() {
