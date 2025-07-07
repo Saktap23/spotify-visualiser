@@ -61,6 +61,32 @@
 
     let analyser, dataArray, bufferLength;
     let particles = [], orbitals = [];
+    const albumArt = new Image();
+
+    const clientId = "102d1b68cdd649459e37be7e48748d9c";
+    const redirectUri = window.location.origin + window.location.pathname;
+    const scopes = ["user-read-currently-playing", "user-read-playback-state"];
+    const authEndpoint = "https://accounts.spotify.com/authorize";
+
+    let token = new URLSearchParams(window.location.hash.substring(1)).get("access_token");
+    if (!token) {
+      window.location.href = `${authEndpoint}?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=${scopes.join("%20")}`;
+    }
+
+    async function fetchAlbumArt() {
+      try {
+        const res = await fetch("https://api.spotify.com/v1/me/player/currently-playing", {
+          headers: { Authorization: "Bearer " + token }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const imageUrl = data?.item?.album?.images?.[0]?.url;
+          if (imageUrl) albumArt.src = imageUrl;
+        }
+      } catch (e) {
+        console.error("Failed to fetch album art", e);
+      }
+    }
 
     function getColor(i, val = 128) {
       const theme = themeSelector.value;
@@ -90,6 +116,15 @@
       }));
     }
 
+    function drawBackgroundImage() {
+      if (!albumArt.complete) return;
+      ctx.save();
+      ctx.globalAlpha = 0.1;
+      ctx.filter = "blur(40px)";
+      ctx.drawImage(albumArt, 0, 0, WIDTH, HEIGHT);
+      ctx.restore();
+    }
+
     function draw() {
       requestAnimationFrame(draw);
       if (!analyser) return;
@@ -106,12 +141,13 @@
         analyser.getByteFrequencyData(dataArray);
       }
 
-      if (style === "barsFade") {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
+      if (style !== "barsFade") ctx.clearRect(0, 0, WIDTH, HEIGHT);
+      else {
+        ctx.fillStyle = "rgba(0,0,0,0.1)";
         ctx.fillRect(0, 0, WIDTH, HEIGHT);
-      } else {
-        ctx.clearRect(0, 0, WIDTH, HEIGHT);
       }
+
+      drawBackgroundImage();
 
       switch (style) {
         case "bars": drawBars(); break;
@@ -137,9 +173,7 @@
     }
 
     function drawRadial() {
-      const cx = WIDTH / 2;
-      const cy = HEIGHT / 2;
-      const radius = 150;
+      const cx = WIDTH / 2, cy = HEIGHT / 2, radius = 150;
       for (let i = 0; i < bufferLength; i++) {
         const angle = (i / bufferLength) * Math.PI * 2;
         const length = dataArray[i] * 1.5;
@@ -168,7 +202,6 @@
         i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
         x += sliceWidth;
       }
-      ctx.lineTo(WIDTH, HEIGHT / 2);
       ctx.stroke();
     }
 
@@ -197,8 +230,7 @@
     }
 
     function drawBlob() {
-      const cx = WIDTH / 2;
-      const cy = HEIGHT / 2;
+      const cx = WIDTH / 2, cy = HEIGHT / 2;
       ctx.beginPath();
       for (let i = 0; i < bufferLength; i++) {
         const angle = (i / bufferLength) * Math.PI * 2;
@@ -213,8 +245,7 @@
     }
 
     function drawOrbitals() {
-      const cx = WIDTH / 2;
-      const cy = HEIGHT / 2;
+      const cx = WIDTH / 2, cy = HEIGHT / 2;
       for (let i = 0; i < bufferLength; i++) {
         const o = orbitals[i];
         o.a += o.s;
@@ -230,14 +261,12 @@
 
     async function start() {
       try {
-        const stream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
-          audio: true,
-        });
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
         setupAnalyser(stream);
         draw();
+        setInterval(fetchAlbumArt, 5000);
       } catch (err) {
-        alert("Permission denied or browser unsupported.");
+        alert("Audio capture failed or was denied.");
         console.error(err);
       }
     }
